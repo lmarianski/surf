@@ -3,9 +3,9 @@
 
 _pkgname=surf
 pkgname=$_pkgname-git
-pkgver=2.0.r82.g7dcce9e
+pkgver=2.1.r5.g11dca18
 pkgrel=1
-pkgdesc="a WebKit based browser"
+pkgdesc="a simple web broser based on WebKit2/GTK+"
 arch=('i686' 'x86_64')
 url="http://surf.suckless.org/"
 license=('custom:MIT/X')
@@ -19,34 +19,50 @@ optdepends=('dmenu: url bar and search'
             'mpv: default video player')
 provides=("$_pkgname")
 conflicts=("$_pkgname")
-source=("$_pkgname::git+https://git.suckless.org/surf")
-md5sums=('SKIP')
+source=("git+https://git.suckless.org/${_pkgname}"
+        https://surf.suckless.org/patches/web-search/surf-websearch-20190510-d068a38.diff
+        surf-websearch-fix.patch
+        surf-popup-2.0.diff
+)
+md5sums=('SKIP'
+         '7cf6fdef8ae73a07d6cd22491c7b365b'
+         '2fbe920776a34484a3f210110a4c5df9'
+         '572a30ff722d6f53e8d27f0763eccb48')
 
 pkgver() {
-  cd "$_pkgname"
+  cd "$srcdir/$_pkgname"
   git describe --long --tags | sed -r 's/([^-]*-g)/r\1/;s/-/./g'
 }
 
 prepare() {
-  cd "$_pkgname"
-  for file in "${source[@]}"; do
-      if [[ "$file" == "config.h" ]]; then
-          # add config.h if present in source array
-          cp "$srcdir/$file" .
-      elif [[ "$file" == *.diff || "$file" == *.patch ]]; then
-          # add all patches present in source array
-          patch -Np1 < "$srcdir/$(basename ${file})"
-      fi
-   done
+  cd "$srcdir/$_pkgname"
+
+	# patch --input "$srcdir/surf-selection-clipboard.patch"   || echo
+  patch --input "$srcdir/surf-websearch-20190510-d068a38.diff"   || echo
+	patch --input "$srcdir/surf-websearch-fix.patch"   || echo
+	patch --input "$srcdir/surf-popup-2.0.diff"   || echo
+
+  if [ -e "$BUILDDIR/config.h" ]
+	then
+		cp "$BUILDDIR/config.h" .
+	elif [ ! -e "$BUILDDIR/config.def.h" ]
+	then
+		msg='This package can be configured in config.h. Copy the config.def.h '
+		msg+='that was just placed into the package directory to config.h and '
+		msg+='modify it to change the configuration. Or just leave it alone to '
+		msg+='continue to use default values.'
+		echo "$msg"
+	fi
+	cp config.def.h "$BUILDDIR"
 }
 
 build() {
-  cd "$_pkgname"
+  cd "$srcdir/$_pkgname"
   make PREFIX=/usr DESTDIR="$pkgdir"
 }
 
 package() {
-  cd "$_pkgname"
+  cd "$srcdir/$_pkgname"
   make PREFIX=/usr DESTDIR="$pkgdir" install
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
